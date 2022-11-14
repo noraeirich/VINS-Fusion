@@ -1,0 +1,39 @@
+<launch>
+
+    <!-- what config we are going to run (should match folder name) -->
+    <arg name="verbosity"   default="INFO" /> <!-- ALL, DEBUG, INFO, WARNING, ERROR, SILENT -->
+    <arg name="config"      default="euroc" /> <!-- euroc, tum_vi, rpng_aruco -->
+    <arg name="config_path" default="$(find vins)/../config/$(arg config)/euroc_mono_imu_config.yaml" />
+<!-- mono or stereo and what ros bag to play -->
+    <arg name="max_cameras" default="1" />
+    <arg name="use_stereo"  default="false" />
+    <arg name="bag_start"   default="0" /> <!-- v1-2: 0, mh1: 40, mh2: 35, mh3: 17.5, mh4-5: 15 -->
+    <arg name="bag_rate"    default="1" />
+    <arg name="bag_end"     default="10" />
+    <arg name="dataset"     default="MH_01_easy" /> <!-- V1_01_easy, V1_02_medium, V2_02_medium -->
+    <arg name="dobag"       default="true" /> <!-- if we should play back the bag -->
+    <arg name="bagpath"     default="/home/noraeirich/euroc" />
+    <arg name="bag"         default="$(arg bagpath)/$(arg dataset)/$(arg dataset).bag" />
+    <arg name="rviz"       default="false" /> <!-- if we should run rviz -->
+
+    <!-- MASTER NODE! -->
+<!--    <node name="ov_msckf" pkg="ov_msckf" type="run_subscribe_msckf" output="screen" clear_params="true" required="true" launch-prefix="gdb -ex run &#45;&#45;args">-->
+    <node name="vins" pkg="vins" type="vins_node" output="screen" args="$(arg config_path)">
+
+        <!-- master configuration object -->
+        <param name="verbosity"              type="string" value="$(arg verbosity)" />
+        <param name="config_path"            type="string" value="$(arg config_path)" />
+
+    </node>
+
+    <!-- play the dataset -->
+    <group if="$(arg dobag)">
+        <node pkg="rosbag" type="play" name="rosbag" args="-d 1 -r $(arg bag_rate) -s $(arg bag_start) -u $(arg bag_end) $(arg bag)" required="true"/>
+    </group>
+
+    <!-- run rviz -->
+    <group if="$(arg rviz)">
+        <node pkg="rviz" type="rviz" name="rosbag" output="log" args="-d $(find vins)/../config/vins_rviz_config.rviz" />
+    </group>
+
+</launch>
