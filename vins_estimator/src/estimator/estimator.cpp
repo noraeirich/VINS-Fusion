@@ -159,6 +159,7 @@ void Estimator::changeSensorType(int use_imu, int use_stereo)
 
 void Estimator::inputImage(double t, const cv::Mat &_img, const cv::Mat &_img1)
 {
+    ROS_INFO_STREAM("Time from inputImage" << t);
     inputImageCnt++;
     map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> featureFrame;
     TicToc featureTrackerTime;
@@ -462,15 +463,29 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
                 if(ESTIMATE_EXTRINSIC != 2 && (header - initial_timestamp) > 0.1)
                 {
                     result = initialStructure();
-                    initial_timestamp = header;   
+                    initial_timestamp = header;
                 }
                 if(result)
                 {
+
+                    ofstream foutC(EXTRA_RESULT_PATH, ios::app);
+                    foutC.setf(ios::fixed, ios::floatfield);
+                    foutC << "Rs (1-9), "
+                        << "Ps (1-3), "
+                        << "Vs (1-3), "
+                        << "Bas (1-3), "
+                        << "Bgs (1-3), ";
+                    foutC.close();
+
                     optimization();
                     updateLatestStates();
+                    
+                    ROS_INFO("Initialization finish!");
+
                     solver_flag = NON_LINEAR;
                     slideWindow();
-                    ROS_INFO("Initialization finish!");
+                    ROS_BREAK();
+                    return;
                 }
                 else
                     slideWindow();
@@ -504,7 +519,6 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
                 ROS_INFO("Initialization finish!");
             }
         }
-
         // stereo only initilization
         if(STEREO && !USE_IMU)
         {
@@ -904,18 +918,30 @@ void Estimator::double2vector()
                                     para_Pose[i][2] - para_Pose[0][2]) + origin_P0;
 
 
-                Vs[i] = rot_diff * Vector3d(para_SpeedBias[i][0],
-                                            para_SpeedBias[i][1],
-                                            para_SpeedBias[i][2]);
+            Vs[i] = rot_diff * Vector3d(para_SpeedBias[i][0],
+                                        para_SpeedBias[i][1],
+                                        para_SpeedBias[i][2]);
 
-                Bas[i] = Vector3d(para_SpeedBias[i][3],
-                                  para_SpeedBias[i][4],
-                                  para_SpeedBias[i][5]);
+            Bas[i] = Vector3d(para_SpeedBias[i][3],
+                                para_SpeedBias[i][4],
+                                para_SpeedBias[i][5]);
 
-                Bgs[i] = Vector3d(para_SpeedBias[i][6],
-                                  para_SpeedBias[i][7],
-                                  para_SpeedBias[i][8]);
-            
+            Bgs[i] = Vector3d(para_SpeedBias[i][6],
+                                para_SpeedBias[i][7],
+                                para_SpeedBias[i][8]);
+
+            // write result to file
+            ofstream foutC(EXTRA_RESULT_PATH, ios::app);
+            foutC.setf(ios::fixed, ios::floatfield);
+            foutC.precision(8);
+            foutC << Rs[i].row(0) << " "
+                << Rs[i].row(1) << " "
+                << Rs[i].row(2) << ","
+                << Ps[i].transpose() << ","
+                << Vs[i].transpose() << ","
+                << Bas[i].transpose() << ","
+                << Bgs[i].transpose() << endl;
+            foutC.close();
         }
     }
     else
@@ -949,7 +975,6 @@ void Estimator::double2vector()
 
     if(USE_IMU)
         td = para_Td[0][0];
-
 }
 
 bool Estimator::failureDetection()
@@ -1131,6 +1156,7 @@ void Estimator::optimization()
     //printf("solver costs: %f \n", t_solver.toc());
 
     double2vector();
+
     //printf("frame_count: %d \n", frame_count);
 
     if(frame_count < WINDOW_SIZE)
@@ -1598,6 +1624,7 @@ void Estimator::updateLatestStates()
     queue<pair<double, Eigen::Vector3d>> tmp_accBuf = accBuf;
     queue<pair<double, Eigen::Vector3d>> tmp_gyrBuf = gyrBuf;
     mBuf.unlock();
+
     while(!tmp_accBuf.empty())
     {
         double t = tmp_accBuf.front().first;

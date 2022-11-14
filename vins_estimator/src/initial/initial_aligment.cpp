@@ -188,7 +188,7 @@ bool LinearAlignment(map<double, ImageFrame> &all_image_frame, Vector3d &g, Vect
     b = b * 1000.0;
     x = A.ldlt().solve(b);
     double s = x(n_state - 1) / 100.0;
-    ROS_DEBUG("estimated scale: %f", s);
+    // ROS_DEBUG("estimated scale: %f", s);
     g = x.segment<3>(n_state - 4);
     ROS_DEBUG_STREAM(" result g     " << g.norm() << " " << g.transpose());
     if(fabs(g.norm() - G.norm()) > 0.5 || s < 0)
@@ -198,6 +198,14 @@ bool LinearAlignment(map<double, ImageFrame> &all_image_frame, Vector3d &g, Vect
 
     RefineGravity(all_image_frame, g, x);
     s = (x.tail<1>())(0) / 100.0;
+
+    ofstream foutC(EXTRA_RESULT_PATH, ios::app);
+    foutC.setf(ios::fixed, ios::floatfield);
+    foutC.precision(8);
+    foutC << "Scale of this initialization: " << s
+        << endl << endl;
+    foutC.close();
+
     (x.tail<1>())(0) = s;
     ROS_DEBUG_STREAM(" refine     " << g.norm() << " " << g.transpose());
     if(s < 0.0 )
@@ -211,7 +219,10 @@ bool VisualIMUAlignment(map<double, ImageFrame> &all_image_frame, Vector3d* Bgs,
     solveGyroscopeBias(all_image_frame, Bgs);
 
     if(LinearAlignment(all_image_frame, g, x))
+    {
+        ROS_WARN_STREAM("gravity " << g);
         return true;
+    }
     else 
         return false;
 }
