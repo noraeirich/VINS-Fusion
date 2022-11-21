@@ -202,8 +202,8 @@ bool LinearAlignment(map<double, ImageFrame> &all_image_frame, Vector3d &g, Vect
     ofstream foutC(EXTRA_RESULT_PATH, ios::app);
     foutC.setf(ios::fixed, ios::floatfield);
     foutC.precision(8);
-    foutC << "Scale of this initialization: " << s
-        << endl << endl;
+    foutC << "Scale " << s
+        << endl;
     foutC.close();
 
     (x.tail<1>())(0) = s;

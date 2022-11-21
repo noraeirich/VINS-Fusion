@@ -159,7 +159,6 @@ void Estimator::changeSensorType(int use_imu, int use_stereo)
 
 void Estimator::inputImage(double t, const cv::Mat &_img, const cv::Mat &_img1)
 {
-    ROS_INFO_STREAM("Time from inputImage" << t);
     inputImageCnt++;
     map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> featureFrame;
     TicToc featureTrackerTime;
@@ -470,16 +469,21 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
 
                     ofstream foutC(EXTRA_RESULT_PATH, ios::app);
                     foutC.setf(ios::fixed, ios::floatfield);
-                    foutC << "Rs (1-9), "
-                        << "Ps (1-3), "
-                        << "Vs (1-3), "
-                        << "Bas (1-3), "
-                        << "Bgs (1-3), ";
-                    foutC.close();
+                    foutC << "InitialTimeStamp: " << initial_timestamp << endl
+                        << "Headers of window frame0: " << Headers[0] << endl
+                        << "Headers of window frame1: " << Headers[1] << endl
+                        << "Headers of window frame2: " << Headers[2] << endl
+                        <<  "RosTimeOptStart: " << header << endl
+                        << "Rs (1-9) "
+                        << "Ps (1-3) "
+                        << "Vs (1-3) "
+                        << "Bas (1-3) "
+                        << "Bgs (1-3) " << endl;
+                    
 
                     optimization();
                     updateLatestStates();
-                    
+
                     ROS_INFO("Initialization finish!");
 
                     solver_flag = NON_LINEAR;
@@ -933,13 +937,19 @@ void Estimator::double2vector()
             // write result to file
             ofstream foutC(EXTRA_RESULT_PATH, ios::app);
             foutC.setf(ios::fixed, ios::floatfield);
+            foutC.precision(9);
+            foutC << Headers[i] << ", ";
             foutC.precision(8);
-            foutC << Rs[i].row(0) << " "
-                << Rs[i].row(1) << " "
-                << Rs[i].row(2) << ","
-                << Ps[i].transpose() << ","
-                << Vs[i].transpose() << ","
-                << Bas[i].transpose() << ","
+            foutC << para_Pose[i][6] << " "
+                << para_Pose[i][3] << " "
+                << para_Pose[i][4] << " "
+                << para_Pose[i][5] << ","
+                // << Rs[i].row(0) << " "
+                // << Rs[i].row(1) << " "
+                // << Rs[i].row(2) << ","
+                << Ps[i].transpose() << ", "
+                << Vs[i].transpose() << ", "
+                << Bas[i].transpose() << ", "
                 << Bgs[i].transpose() << endl;
             foutC.close();
         }
@@ -1090,6 +1100,7 @@ void Estimator::optimization()
     int feature_index = -1;
     for (auto &it_per_id : f_manager.feature)
     {
+        // ROS_INFO_STREAM("f_manager in optimization " << f_manager);
         it_per_id.used_num = it_per_id.feature_per_frame.size();
         if (it_per_id.used_num < 4)
             continue;
