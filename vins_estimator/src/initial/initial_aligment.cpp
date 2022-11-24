@@ -132,6 +132,9 @@ void RefineGravity(map<double, ImageFrame> &all_image_frame, Vector3d &g, Vector
     g = g0;
 }
 
+extern double latest_s;
+extern Eigen::Vector3d latest_g;
+
 bool LinearAlignment(map<double, ImageFrame> &all_image_frame, Vector3d &g, VectorXd &x)
 {
     int all_frame_count = all_image_frame.size();
@@ -199,12 +202,8 @@ bool LinearAlignment(map<double, ImageFrame> &all_image_frame, Vector3d &g, Vect
     RefineGravity(all_image_frame, g, x);
     s = (x.tail<1>())(0) / 100.0;
 
-    ofstream foutC(EXTRA_RESULT_PATH, ios::app);
-    foutC.setf(ios::fixed, ios::floatfield);
-    foutC.precision(8);
-    foutC << "Scale " << s
-        << endl;
-    foutC.close();
+    double latest_s = s;
+    Eigen::Vector3d latest_g = g.transpose();
 
     (x.tail<1>())(0) = s;
     ROS_DEBUG_STREAM(" refine     " << g.norm() << " " << g.transpose());

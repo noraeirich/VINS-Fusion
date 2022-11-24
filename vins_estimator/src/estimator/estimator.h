@@ -101,6 +101,9 @@ class Estimator
     double prevTime, curTime;
     bool openExEstimation;
 
+    bool startStamp = 1;
+    double startTime;
+
     std::thread trackThread;
     std::thread processThread;
 

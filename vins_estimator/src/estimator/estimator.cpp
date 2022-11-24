@@ -271,6 +271,11 @@ void Estimator::processMeasurements()
 {
     while (1)
     {
+        if (startStamp && prevTime!=-1)
+        {
+            startStamp=0;
+            startTime = prevTime;
+        }
         //printf("process measurments\n");
         pair<double, map<int, vector<pair<int, Eigen::Matrix<double, 7, 1> > > > > feature;
         vector<pair<double, Eigen::Vector3d>> accVector, gyrVector;
@@ -469,20 +474,25 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
 
                     ofstream foutC(EXTRA_RESULT_PATH, ios::app);
                     foutC.setf(ios::fixed, ios::floatfield);
-                    foutC << "InitialTimeStamp: " << initial_timestamp << endl
-                        << "Headers of window frame0: " << Headers[0] << endl
-                        << "Headers of window frame1: " << Headers[1] << endl
-                        << "Headers of window frame2: " << Headers[2] << endl
-                        <<  "RosTimeOptStart: " << header << endl
-                        << "Rs (1-9) "
-                        << "Ps (1-3) "
-                        << "Vs (1-3) "
-                        << "Bas (1-3) "
-                        << "Bgs (1-3) " << endl;
+                    foutC << "FrameTime, "
+                        << "Ps_x Ps_y Ps_z, "
+                        << "qk qw qi qj, " //TODO NORA check up  on this
+                        << "Vs_x Vs_y Vs_z, "
+                        << "Bgs_x Bgs_y Bgs_z, "
+                        << "Bas_x Bas_y Basz" << endl;
                     
 
                     optimization();
                     updateLatestStates();
+                    
+                    double latest_s;
+                    Eigen::Vector3d latest_g;
+                    foutC.setf(ios::fixed, ios::floatfield);
+                    foutC << latest_s << ", "
+                        << latest_g.transpose() << ", "
+                        << startTime << ", "
+                        << latest_time;
+                    foutC.close();
 
                     ROS_INFO("Initialization finish!");
 
@@ -937,20 +947,17 @@ void Estimator::double2vector()
             // write result to file
             ofstream foutC(EXTRA_RESULT_PATH, ios::app);
             foutC.setf(ios::fixed, ios::floatfield);
-            foutC.precision(9);
-            foutC << Headers[i] << ", ";
-            foutC.precision(8);
-            foutC << para_Pose[i][6] << " "
+            foutC.precision(0);
+            foutC << Headers[i] * 1e+9 << ", ";
+            foutC.precision(6);
+            foutC << Ps[i].transpose() << ", "
+                << para_Pose[i][6] << " "
                 << para_Pose[i][3] << " "
                 << para_Pose[i][4] << " "
                 << para_Pose[i][5] << ","
-                // << Rs[i].row(0) << " "
-                // << Rs[i].row(1) << " "
-                // << Rs[i].row(2) << ","
-                << Ps[i].transpose() << ", "
                 << Vs[i].transpose() << ", "
-                << Bas[i].transpose() << ", "
-                << Bgs[i].transpose() << endl;
+                << Bgs[i].transpose() << ", "
+                << Bas[i].transpose() << endl;
             foutC.close();
         }
     }
@@ -964,6 +971,11 @@ void Estimator::double2vector()
         }
     }
 
+    ofstream foutC(EXTRA_RESULT_PATH, ios::app);
+    foutC.setf(ios::fixed, ios::floatfield);
+    foutC << "Tic, Ric_r1 Ric_r2 Ric_r3, Scale, refGravity, StartTime, EndTime" << endl;
+    foutC.close();
+
     if(USE_IMU)
     {
         for (int i = 0; i < NUM_OF_CAM; i++)
@@ -975,6 +987,15 @@ void Estimator::double2vector()
                                  para_Ex_Pose[i][3],
                                  para_Ex_Pose[i][4],
                                  para_Ex_Pose[i][5]).normalized().toRotationMatrix();
+        
+            ofstream foutC(EXTRA_RESULT_PATH, ios::app);
+            foutC.setf(ios::fixed, ios::floatfield);
+            foutC << tic[i].transpose() << ", "
+                << ric[i].row(0) << " "
+                << ric[i].row(1) << " "
+                << ric[i].row(2) << ", ";
+                foutC.close();
+        
         }
     }
 

@@ -20,6 +20,9 @@
 
 using namespace std;
 
+extern double latest_s;
+extern Eigen::Vector3d latest_g;
+
 const double FOCAL_LENGTH = 460.0;
 const int WINDOW_SIZE = 10;
 const int NUM_OF_F = 1000;
