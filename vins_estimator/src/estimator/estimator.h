@@ -40,6 +40,9 @@
 class Estimator
 {
   public:
+
+    double S;
+
     Estimator();
     ~Estimator();
     void setParameter();

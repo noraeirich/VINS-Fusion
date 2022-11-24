@@ -413,6 +413,7 @@ void Estimator::processIMU(double t, double dt, const Vector3d &linear_accelerat
     gyr_0 = angular_velocity; 
 }
 
+
 void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image, const double header)
 {
     ROS_DEBUG("new image coming ------------------------------------------");
@@ -481,15 +482,14 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
                         << "Bgs_x Bgs_y Bgs_z, "
                         << "Bas_x Bas_y Basz" << endl;
                     
-
                     optimization();
                     updateLatestStates();
-                    
-                    double latest_s;
-                    Eigen::Vector3d latest_g;
+
+                    // extern double S;
+                    ROS_INFO_STREAM("2. scale: " << Estimator::S);
                     foutC.setf(ios::fixed, ios::floatfield);
-                    foutC << latest_s << ", "
-                        << latest_g.transpose() << ", "
+                    foutC << Estimator::S << ", "
+                        << g.transpose() << ", "
                         << startTime << ", "
                         << latest_time;
                     foutC.close();
@@ -757,6 +757,8 @@ bool Estimator::visualInitialAlign()
     VectorXd x;
     //solve scale
     bool result = VisualIMUAlignment(all_image_frame, Bgs, g, x);
+    Estimator::S = (x.tail<1>())(0);
+
     if(!result)
     {
         ROS_DEBUG("solve g failed!");

@@ -132,8 +132,6 @@ void RefineGravity(map<double, ImageFrame> &all_image_frame, Vector3d &g, Vector
     g = g0;
 }
 
-extern double latest_s;
-extern Eigen::Vector3d latest_g;
 
 bool LinearAlignment(map<double, ImageFrame> &all_image_frame, Vector3d &g, VectorXd &x)
 {
@@ -203,7 +201,7 @@ bool LinearAlignment(map<double, ImageFrame> &all_image_frame, Vector3d &g, Vect
     s = (x.tail<1>())(0) / 100.0;
 
     double latest_s = s;
-    Eigen::Vector3d latest_g = g.transpose();
+    ROS_INFO_STREAM("1. scale" << latest_s);
 
     (x.tail<1>())(0) = s;
     ROS_DEBUG_STREAM(" refine     " << g.norm() << " " << g.transpose());
