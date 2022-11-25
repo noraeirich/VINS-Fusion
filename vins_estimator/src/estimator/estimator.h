@@ -42,6 +42,7 @@ class Estimator
   public:
 
     double S;
+    Vector3d grav;
 
     Estimator();
     ~Estimator();

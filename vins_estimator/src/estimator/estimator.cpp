@@ -477,7 +477,7 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
                     foutC.setf(ios::fixed, ios::floatfield);
                     foutC << "FrameTime, "
                         << "Ps_x Ps_y Ps_z, "
-                        << "qk qw qi qj, " //TODO NORA check up  on this
+                        << "qw qx qy qz, " //TODO NORA check up  on this
                         << "Vs_x Vs_y Vs_z, "
                         << "Bgs_x Bgs_y Bgs_z, "
                         << "Bas_x Bas_y Basz" << endl;
@@ -485,11 +485,10 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
                     optimization();
                     updateLatestStates();
 
-                    // extern double S;
-                    ROS_INFO_STREAM("2. scale: " << Estimator::S);
+
                     foutC.setf(ios::fixed, ios::floatfield);
                     foutC << Estimator::S << ", "
-                        << g.transpose() << ", "
+                        << Estimator::grav.transpose() << ", "
                         << startTime << ", "
                         << latest_time;
                     foutC.close();
@@ -758,6 +757,7 @@ bool Estimator::visualInitialAlign()
     //solve scale
     bool result = VisualIMUAlignment(all_image_frame, Bgs, g, x);
     Estimator::S = (x.tail<1>())(0);
+    Estimator::grav = g;
 
     if(!result)
     {
@@ -781,7 +781,7 @@ bool Estimator::visualInitialAlign()
         pre_integrations[i]->repropagate(Vector3d::Zero(), Bgs[i]);
     }
     for (int i = frame_count; i >= 0; i--)
-        Ps[i] = s * Ps[i] - Rs[i] * TIC[0] - (s * Ps[0] - Rs[0] * TIC[0]);
+        Ps[i] = s * Ps[i] - Rs[i] * TIC[0] - (s * Ps[0] - Rs[0] * TIC[0]); //TODO NORA understand this is this a new Ps from the one you logged?
     int kv = -1;
     map<double, ImageFrame>::iterator frame_i;
     for (frame_i = all_image_frame.begin(); frame_i != all_image_frame.end(); frame_i++)
@@ -928,6 +928,7 @@ void Estimator::double2vector()
         {
 
             Rs[i] = rot_diff * Quaterniond(para_Pose[i][6], para_Pose[i][3], para_Pose[i][4], para_Pose[i][5]).normalized().toRotationMatrix();
+
             
             Ps[i] = rot_diff * Vector3d(para_Pose[i][0] - para_Pose[0][0],
                                     para_Pose[i][1] - para_Pose[0][1],
