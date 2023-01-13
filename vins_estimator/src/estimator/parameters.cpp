@@ -28,6 +28,7 @@ int ESTIMATE_TD;
 int ROLLING_SHUTTER;
 std::string EX_CALIB_RESULT_PATH;
 std::string VINS_RESULT_PATH;
+std::string CONFIG_RESULT_PATH;
 std::string EXTRA_RESULT_PATH;
 std::string OUTPUT_FOLDER;
 std::string IMU_TOPIC;
@@ -111,6 +112,7 @@ void readParameters(std::string config_file)
     fsSettings["output_path"] >> OUTPUT_FOLDER;
     VINS_RESULT_PATH = OUTPUT_FOLDER + "/vio.csv";
     EXTRA_RESULT_PATH = OUTPUT_FOLDER + "/extra.csv";
+    CONFIG_RESULT_PATH = OUTPUT_FOLDER + "/config.csv";
     std::cout << "result path " << EXTRA_RESULT_PATH << std::endl;
     std::ofstream fout(EXTRA_RESULT_PATH, std::ios::out);
     fout.close();
