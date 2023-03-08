@@ -155,7 +155,7 @@ void pubOdometry(const Estimator &estimator, const std_msgs::Header &header)
         pub_path.publish(path);
 
 
-        // write result to file
+        // NORA write results to file
         ofstream foutC(EXTRA_RESULT_PATH, ios::app);
         foutC.setf(ios::fixed, ios::floatfield);
         foutC << header.stamp.toSec() << " ";
@@ -172,10 +172,10 @@ void pubOdometry(const Estimator &estimator, const std_msgs::Header &header)
         // printf("time: %f, t: %f %f %f q: %f %f %f %f \n", header.stamp.toSec(), tmp_T.x(), tmp_T.y(), tmp_T.z(),
         //                                                   tmp_Q.w(), tmp_Q.x(), tmp_Q.y(), tmp_Q.z());
 
-        if(pose_counter >= 29){
+        // NORA Stop-condition, after certain amount of poses
+        if(pose_counter >= 89){
 
-            ROS_INFO_STREAM("30 Poses after init done!");
-            ROS_BREAK();
+            exit(EXIT_SUCCESS);
         }
         pose_counter++;
                                                         

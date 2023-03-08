@@ -10,6 +10,12 @@
  *******************************************************/
 
 #include "initial_alignment.h"
+#include <random>
+#include <math.h>
+
+// NORA uncomment if the distance measurement is needed during the linear measurement model
+extern map<long, Vector3d> *GT_MAP;
+
 
 void solveGyroscopeBias(map<double, ImageFrame> &all_image_frame, Vector3d* Bgs)
 {
@@ -86,9 +92,25 @@ void RefineGravity(map<double, ImageFrame> &all_image_frame, Vector3d &g, Vector
         {
             frame_j = next(frame_i);
 
+            // // NORA uncomment if the distance measurement is needed during the linear measurement model 
+            // // Adjust the matrix sizes
+
+            // long k1 = frame_i->second.t*1e+09;     
+            // long k2 = frame_j->second.t*1e+09;
+
+            // Eigen::Vector3d p1 = GT_MAP->at(k1);
+            // Eigen::Vector3d p2 = GT_MAP->at(k2);
+
+            // double d_m = ((p1-p2)).norm();
+            // double d_c = ((frame_j->second.T - frame_i->second.T)/100.0).norm();
+
+
+            // NORA Switch sizes
             MatrixXd tmp_A(6, 9);
+            // MatrixXd tmp_A(7, 9);
             tmp_A.setZero();
             VectorXd tmp_b(6);
+            // VectorXd tmp_b(7);
             tmp_b.setZero();
 
             double dt = frame_j->second.pre_integration->sum_dt;
@@ -99,13 +121,19 @@ void RefineGravity(map<double, ImageFrame> &all_image_frame, Vector3d &g, Vector
             tmp_A.block<3, 1>(0, 8) = frame_i->second.R.transpose() * (frame_j->second.T - frame_i->second.T) / 100.0;     
             tmp_b.block<3, 1>(0, 0) = frame_j->second.pre_integration->delta_p + frame_i->second.R.transpose() * frame_j->second.R * TIC[0] - TIC[0] - frame_i->second.R.transpose() * dt * dt / 2 * g0;
 
+            // NORA uncomment the additional blocks
             tmp_A.block<3, 3>(3, 0) = -Matrix3d::Identity();
             tmp_A.block<3, 3>(3, 3) = frame_i->second.R.transpose() * frame_j->second.R;
             tmp_A.block<3, 2>(3, 6) = frame_i->second.R.transpose() * dt * Matrix3d::Identity() * lxly;
+            // tmp_A.block<1, 1>(6, 8) << d_c;
             tmp_b.block<3, 1>(3, 0) = frame_j->second.pre_integration->delta_v - frame_i->second.R.transpose() * dt * Matrix3d::Identity() * g0;
+            // tmp_b.block<1, 1>(6, 0) << d_m;
 
-
+            // NORA switch matrix size
             Matrix<double, 6, 6> cov_inv = Matrix<double, 6, 6>::Zero();
+            // Matrix<double, 7, 7> cov_inv = Matrix<double, 7, 7>::Zero();
+
+
             //cov.block<6, 6>(0, 0) = IMU_cov[i + 1];
             //MatrixXd cov_inv = cov.inverse();
             cov_inv.setIdentity();
@@ -122,6 +150,7 @@ void RefineGravity(map<double, ImageFrame> &all_image_frame, Vector3d &g, Vector
             A.block<6, 3>(i * 3, n_state - 3) += r_A.topRightCorner<6, 3>();
             A.block<3, 6>(n_state - 3, i * 3) += r_A.bottomLeftCorner<3, 6>();
         }
+
             A = A * 1000.0;
             b = b * 1000.0;
             x = A.ldlt().solve(b);
@@ -134,7 +163,7 @@ void RefineGravity(map<double, ImageFrame> &all_image_frame, Vector3d &g, Vector
 
 
 bool LinearAlignment(map<double, ImageFrame> &all_image_frame, Vector3d &g, VectorXd &x)
-{
+{  
     int all_frame_count = all_image_frame.size();
     int n_state = all_frame_count * 3 + 3 + 1;
 
@@ -145,30 +174,63 @@ bool LinearAlignment(map<double, ImageFrame> &all_image_frame, Vector3d &g, Vect
 
     map<double, ImageFrame>::iterator frame_i;
     map<double, ImageFrame>::iterator frame_j;
+
     int i = 0;
     for (frame_i = all_image_frame.begin(); next(frame_i) != all_image_frame.end(); frame_i++, i++)
     {
         frame_j = next(frame_i);
 
+        // // NORA uncomment if the distance measurement is needed during the linear measurement model 
+        // // Adjust the matrix sizes
+
+        // long k1 = frame_i->second.t*1e+09;     
+        // long k2 = frame_j->second.t*1e+09;
+
+        // Eigen::Vector3d p1 = GT_MAP->at(k1);
+        // Eigen::Vector3d p2 = GT_MAP->at(k2);
+
+        // double d_m = ((p2-p1)).norm();
+        // double d_calc = ((frame_j->second.T - frame_i->second.T)/100.0).norm();
+
+        // cout << "d_m: " << d_m << " d_calc: " << d_calc << endl
+        //     << "scale_measurement: " << (d_m/d_calc)/100.0 << endl;
+
+        // NORA Switch sizes
         MatrixXd tmp_A(6, 10);
+        // MatrixXd tmp_A(7, 10);
         tmp_A.setZero();
         VectorXd tmp_b(6);
+        // VectorXd tmp_b(7);
         tmp_b.setZero();
+
+
+        // cout << "c0 translation vec: " << (frame_j->second.T - frame_i->second.T)
+        //     << "c0 translation vec/100: " << (frame_j->second.T - frame_i->second.T)/100.0 << endl;
+        // cout << "key-value of frame_i: " << all_image_frame(frame_i) << endl;
 
         double dt = frame_j->second.pre_integration->sum_dt;
 
+        // NORA uncomment additional blocks
         tmp_A.block<3, 3>(0, 0) = -dt * Matrix3d::Identity();
         tmp_A.block<3, 3>(0, 6) = frame_i->second.R.transpose() * dt * dt / 2 * Matrix3d::Identity();
         tmp_A.block<3, 1>(0, 9) = frame_i->second.R.transpose() * (frame_j->second.T - frame_i->second.T) / 100.0;     
         tmp_b.block<3, 1>(0, 0) = frame_j->second.pre_integration->delta_p + frame_i->second.R.transpose() * frame_j->second.R * TIC[0] - TIC[0];
-        //cout << "delta_p   " << frame_j->second.pre_integration->delta_p.transpose() << endl;
+        // cout << "delta_p   " << frame_j->second.pre_integration->delta_p.transpose() << endl;
         tmp_A.block<3, 3>(3, 0) = -Matrix3d::Identity();
         tmp_A.block<3, 3>(3, 3) = frame_i->second.R.transpose() * frame_j->second.R;
         tmp_A.block<3, 3>(3, 6) = frame_i->second.R.transpose() * dt * Matrix3d::Identity();
+        // tmp_A.block<1, 1>(6, 9) << d_calc;
         tmp_b.block<3, 1>(3, 0) = frame_j->second.pre_integration->delta_v;
+        // tmp_b.block<1, 1>(6, 0) << d_m;
+
+
         //cout << "delta_v   " << frame_j->second.pre_integration->delta_v.transpose() << endl;
 
+        // NORA switch matrix size
         Matrix<double, 6, 6> cov_inv = Matrix<double, 6, 6>::Zero();
+        // Matrix<double, 7, 7> cov_inv = Matrix<double, 7, 7>::Zero();
+
+
         //cov.block<6, 6>(0, 0) = IMU_cov[i + 1];
         //MatrixXd cov_inv = cov.inverse();
         cov_inv.setIdentity();
@@ -199,7 +261,7 @@ bool LinearAlignment(map<double, ImageFrame> &all_image_frame, Vector3d &g, Vect
 
     RefineGravity(all_image_frame, g, x);
     s = (x.tail<1>())(0) / 100.0;
-
+    cout << "estimated scale2: " << s << endl;
 
     (x.tail<1>())(0) = s;
     ROS_DEBUG_STREAM(" refine     " << g.norm() << " " << g.transpose());

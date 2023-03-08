@@ -240,6 +240,7 @@ int main(int argc, char **argv)
 
     readParameters(config_file);
     estimator.setParameter();
+    estimator.generateGTmap();
 
 #ifdef EIGEN_DONT_PARALLELIZE
     ROS_DEBUG("EIGEN_DONT_PARALLELIZE");

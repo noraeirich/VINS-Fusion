@@ -8,7 +8,14 @@
  *******************************************************/
 
 #pragma once
- 
+
+#include <fstream>
+#include <iostream>
+#include <sstream>
+#include <string>
+#include <map>
+#include <random>
+
 #include <thread>
 #include <mutex>
 #include <std_msgs/Header.h>
@@ -29,6 +36,7 @@
 #include "../initial/initial_alignment.h"
 #include "../initial/initial_ex_rotation.h"
 #include "../factor/imu_factor.h"
+#include "../factor/odom_factor.h"
 #include "../factor/pose_local_parameterization.h"
 #include "../factor/marginalization_factor.h"
 #include "../factor/projectionTwoFrameOneCamFactor.h"
@@ -44,9 +52,13 @@ class Estimator
     double S;
     Vector3d grav;
 
+    typedef long key_t;
+    map<key_t, Vector3d> gt_map;
+
     Estimator();
     ~Estimator();
     void setParameter();
+    void generateGTmap();
 
     // interface
     void initFirstPose(Eigen::Vector3d p, Eigen::Matrix3d r);

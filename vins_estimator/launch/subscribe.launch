@@ -9,8 +9,8 @@
     <arg name="use_stereo"  default="false" />
     <arg name="bag_start"   default="0" /> <!-- v1-2: 0, mh1: 40, mh2: 35, mh3: 17.5, mh4-5: 15 -->
     <arg name="bag_rate"    default="1" />
-    <arg name="bag_end"     default="10" />
-    <arg name="dataset"     default="MH_01_easy" /> <!-- V1_01_easy, V1_02_medium, V2_02_medium -->
+    <arg name="bag_end"     default="30" />
+    <arg name="dataset"     default="MH_02_easy" /> <!-- V1_01_easy, V1_02_medium, V2_02_medium -->
     <arg name="dobag"       default="true" /> <!-- if we should play back the bag -->
     <arg name="bagpath"     default="/home/noraeirich/euroc" />
     <arg name="bag"         default="$(arg bagpath)/$(arg dataset)/$(arg dataset).bag" />
@@ -29,11 +29,12 @@
     <!-- play the dataset -->
     <group if="$(arg dobag)">
         <node pkg="rosbag" type="play" name="rosbag" args="-d 1 -r $(arg bag_rate) -s $(arg bag_start) -u $(arg bag_end) $(arg bag)" required="true"/>
+        <!-- <node pkg="rosbag" type="play" name="rosbag" args="-d 1 -r $(arg bag_rate) -s $(arg bag_start) $(arg bag)" required="true"/> -->
     </group>
 
     <!-- run rviz -->
     <group if="$(arg rviz)">
-        <node pkg="rviz" type="rviz" name="rosbag" output="log" args="-d $(find vins)/../config/vins_rviz_config.rviz" />
+        <node pkg="rviz" type="rviz" name="rvizvisualisation" output="log" args="-d $(find vins)/../config/vins_rviz_config.rviz" />
     </group>
 
 </launch>

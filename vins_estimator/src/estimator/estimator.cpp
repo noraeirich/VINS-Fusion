@@ -214,6 +214,40 @@ void Estimator::inputIMU(double t, const Vector3d &linearAcceleration, const Vec
     }
 }
 
+
+// NORA function to generate a map from which the distance measurements can be calculated from
+// !! change the dataset file location, as of now it is still hard-coded
+map<long, Vector3d> *GT_MAP;
+
+void Estimator::generateGTmap()
+{
+    ifstream gt;
+    gt.open("/home/noraeirich/euroc/MH_02_easy/mav0/state_groundtruth_estimate0/data.csv");
+
+    string line;
+    while (getline(gt, line))
+    {
+        if (line[0] == '#')
+            continue;
+
+        istringstream iss(line);
+        key_t timest;
+        double tx, ty, tz;
+        char c;
+
+        if (!(iss >> timest >> c >> tx >> c >> ty >> c >> tz))
+        {
+            cout << "parsing error" << endl;
+            continue;
+        }
+
+        gt_map.insert(pair<key_t, Vector3d>(timest, Eigen::Matrix<double, 3, 1>(tx, ty, tz)));
+    }
+
+    GT_MAP = &gt_map;
+    gt.close();
+}
+
 void Estimator::inputFeature(double t, const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &featureFrame)
 {
     mBuf.lock();
@@ -459,11 +493,11 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
     if (solver_flag == INITIAL)
     {
         // monocular + IMU initilization
-        // break of the initialization if we take more than 8seconds
+        // NORA Stop-condition if the initialization takes more then 8 seconds
         if (header - startTime >= 8 & startTime > 0)
         {
-            ROS_INFO_STREAM("INIT TIME OVER 8s!" << (header - startTime));
-            ROS_BREAK();
+            ROS_INFO_STREAM("INIT TIME OVER 8s: "<< (header - startTime));
+            exit(EXIT_FAILURE);
         }
 
         if (!STEREO && USE_IMU)
@@ -478,11 +512,11 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
                 }
                 if (result)
                 {
-
+                    // NORA save the header of the csv file
                     ofstream foutC(EXTRA_RESULT_PATH, ios::app);
                     foutC.setf(ios::fixed, ios::floatfield);
                     foutC << "#FrameTime "
-                          << "Ps_x Ps_y Ps_z "
+                          << "tx ty tz "
                           << "qx qy qz qw "
                           << "Vs_x Vs_y Vs_z "
                           << "Bgs_x Bgs_y Bgs_z "
@@ -492,6 +526,7 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
                     optimization();
                     updateLatestStates();
 
+                    // NORA save some additional data to another csv file
                     ofstream foutT(CONFIG_RESULT_PATH, ios::app);
                     foutT.setf(ios::fixed, ios::floatfield);
                     foutT << Estimator::S << ", "
@@ -499,6 +534,10 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
                           << startTime << ", "
                           << latest_time;
                     foutT.close();
+
+
+                    // NORA uncomment if only initialization values are wanted
+                    // exit(EXIT_SUCCESS);
 
                     solver_flag = NON_LINEAR;
                     slideWindow();
@@ -783,7 +822,7 @@ bool Estimator::visualInitialAlign()
         pre_integrations[i]->repropagate(Vector3d::Zero(), Bgs[i]);
     }
     for (int i = frame_count; i >= 0; i--)
-        Ps[i] = s * Ps[i] - Rs[i] * TIC[0] - (s * Ps[0] - Rs[0] * TIC[0]); // TODO NORA understand this is this a new Ps from the one you logged?
+        Ps[i] = s * Ps[i] - Rs[i] * TIC[0] - (s * Ps[0] - Rs[0] * TIC[0]);
     int kv = -1;
     map<double, ImageFrame>::iterator frame_i;
     for (frame_i = all_image_frame.begin(); frame_i != all_image_frame.end(); frame_i++)
@@ -948,19 +987,22 @@ void Estimator::double2vector()
             Bgs[i] = Vector3d(para_SpeedBias[i][6],
                               para_SpeedBias[i][7],
                               para_SpeedBias[i][8]);
+
+            // NORA
             if(solver_flag == INITIAL & i < WINDOW_SIZE)
-            {
+            {   
+                Quaterniond qtemp = Quaterniond(Rs[i]);
                 // write result to file
                 ofstream foutC(EXTRA_RESULT_PATH, ios::app);
                 foutC.setf(ios::fixed, ios::floatfield);
                 foutC << Headers[i] << " ";
                 foutC.precision(7);
                 foutC << Ps[i][0] << " " << Ps[i][1] << " " << Ps[i][2] << " "
-                    << para_Pose[i][3] << " " << para_Pose[i][4] << " "
-                    << para_Pose[i][5] << " " << para_Pose[i][6] << " "
-                    << Vs[i][0] << " " << Vs[i][1] << " " << Vs[i][2] << " "
-                    << Bgs[i][0] << " " << Bgs[i][1] << " " << Bgs[i][2] << " "
-                    << Bas[i][0] << " " << Bas[i][1] << " " << Bas[i][2] << " " << endl;
+                      << qtemp.x() << " " << qtemp.y() << " "
+                      << qtemp.z() << " " << qtemp.w() << " "
+                      << Vs[i][0] << " " << Vs[i][1] << " " << Vs[i][2] << " "
+                      << Bgs[i][0] << " " << Bgs[i][1] << " " << Bgs[i][2] << " "
+                      << Bas[i][0] << " " << Bas[i][1] << " " << Bas[i][2] << " " << endl;
                 foutC.close();
             }
         }
@@ -975,11 +1017,12 @@ void Estimator::double2vector()
         }
     }
 
-    if(solver_flag == INITIAL)
+    // NORA saving additional data
+    if (solver_flag == INITIAL)
     {
         ofstream foutC(CONFIG_RESULT_PATH, ios::app);
         foutC.setf(ios::fixed, ios::floatfield);
-        foutC << "Tic, Ric_r1 Ric_r2 Ric_r3, Scale, refGravity, StartTime, EndTime" << endl;
+        foutC << "Scale, refGravity, StartTime, EndTime" << endl;
         foutC.close();
     }
 
@@ -996,16 +1039,6 @@ void Estimator::double2vector()
                                  para_Ex_Pose[i][5])
                          .normalized()
                          .toRotationMatrix();
-            if(solver_flag == INITIAL)
-            {
-                ofstream foutC(CONFIG_RESULT_PATH, ios::app);
-                foutC.setf(ios::fixed, ios::floatfield);
-                foutC << tic[i].transpose() << ", "
-                    << ric[i].row(0) << " "
-                    << ric[i].row(1) << " "
-                    << ric[i].row(2) << ", ";
-                foutC.close();
-            }
         }
     }
 
@@ -1067,6 +1100,22 @@ bool Estimator::failureDetection()
     return false;
 }
 
+
+// // NORA uncomment if additional odometry is to be included into ceres
+// // average distance between poses: 0.189 m
+// // 1% of that is 0.00189
+// // 5% of that is 0.00948
+
+// // total distance measurement
+// double noise_d;
+// std::default_random_engine gen_d;
+// normal_distribution<double> d(0.0, 0.00189);
+
+// // z-directional
+// double noise_z;
+// std::default_random_engine gen_z;
+// normal_distribution<double> d_z(0.0, 0.00189/3);
+
 void Estimator::optimization()
 {
     TicToc t_whole, t_prepare;
@@ -1085,6 +1134,7 @@ void Estimator::optimization()
         if (USE_IMU)
             problem.AddParameterBlock(para_SpeedBias[i], SIZE_SPEEDBIAS);
     }
+
     if (!USE_IMU)
         problem.SetParameterBlockConstant(para_Pose[0]);
 
@@ -1124,6 +1174,28 @@ void Estimator::optimization()
                 continue;
             IMUFactor *imu_factor = new IMUFactor(pre_integrations[j]);
             problem.AddResidualBlock(imu_factor, NULL, para_Pose[i], para_SpeedBias[i], para_Pose[j], para_SpeedBias[j]);
+        
+            // // NORA
+            // long k1 = Headers[i] * 1e+09;
+            // long k2 = Headers[j] * 1e+09;
+            // Eigen::Vector3d p1 = GT_MAP->at(k1);
+            // Eigen::Vector3d p2 = GT_MAP->at(k2);
+        
+            // // whole distance measurement
+            // noise_d = d(gen_d);
+            // const double d_m = (p2-p1).norm();
+
+            // // cout << "NOISE: " << noise_d << endl
+            // //     << "DIST+NOISE: " << d_m+noise << endl;
+
+            // problem.AddResidualBlock(ODOMFactor::Create(d_m+noise_d), NULL, para_Pose[i], para_Pose[j]);
+
+            // // z-directional
+            // noise_z = d_z(gen_z);
+            // const double dz = p2.z()-p1.z()+noise_z;
+            // // cout << "DIST_Z: " << dz << endl;
+
+            // problem.AddResidualBlock(ODOMFactor_z::Create(dz), NULL, para_Pose[i], para_Pose[j]);
         }
     }
 
